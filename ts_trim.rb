@@ -5,8 +5,9 @@ MPEG2TS_BLOCK_SIZE = 188  # block size for transport stream
 tspkt_count = 0;
 tspkt_found = 0;
 
-def processTSPacket buffer
-  #puts buffer[0].to_s(16)  
+if (ARGV[0]== nil) || (ARGV[1] == nil) || (ARGV[0] == "-h")
+puts "Usage: ruby ts_trim.rb SOURCE_TS DEST_TS"
+exit
 end
 
 f_write = File.open(ARGV[1], "w")

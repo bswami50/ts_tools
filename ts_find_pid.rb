@@ -63,7 +63,12 @@ File.open ARGV[0] do |file|
     
     #b_uint = 188 byte array
     b_uint = buffer.unpack 'C*'
-     
+    
+	unless(b_uint[0] == 0x47)
+	  puts "TS Sync lost @ #{file.pos}"
+	  exit
+	end
+	
     pid =  ((b_uint[1] & 0x1f) << 8) | (b_uint[2] & 0xff)
     @pid_counter[pid] += 1; #increments pid occurence in hash table by 1 
     
