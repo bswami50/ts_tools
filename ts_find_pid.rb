@@ -3,7 +3,6 @@ require 'gnuplot'
 
 MPEG2TS_BLOCK_SIZE = 188  # block size for transport stream
 CLOCKS_PER_SEC = 27000000
-MAX_PACKETS_TO_PROCESS = 200000
 
 @pid_counter = Hash.new(0)
 @pcr_pid_counter = Hash.new(0)
@@ -12,6 +11,7 @@ MAX_PACKETS_TO_PROCESS = 200000
 @ref_pcr_pid = 0
 @plot_pid = 0
 @plot_pid_bitrates = Array.new()
+@max_packets = 0
 
 def processAdaptationField b, pid
   af_length = b[4]     
@@ -26,7 +26,7 @@ def processAdaptationField b, pid
       
       @pcr_pid_counter[pid] += 1
       
-      #save first seen pcr pid as reference
+      #save first seen pcr pid as reference unless specified
       @ref_pcr_pid = pid unless @ref_pcr_pid != 0 
       
       #print "PCR found at pos: ", @total_packet_count * 188," PCR: ", pcr, "\n" unless pid!=@ref_pcr_pid
@@ -41,9 +41,21 @@ def processAdaptationField b, pid
   end
 end
 
-t1 = Time.new()
-@plot_pid = ARGV[1] unless ARGV[1] == nil
+#Program start
 
+t1 = Time.new()
+if (ARGV[0]== nil) || (ARGV[0] == "-h")
+puts "Usage: ruby ts_find_pid.rb TS FILE [PID] [MAX_PACKETS]"
+puts  "TS FILE           TS beginning with proper start code (0x47)"
+puts  "[PID]             PID (decimal) to plot bitrate (default=none)"
+puts  "[PCR]             Use this PID (decimal) as PCR for timing (default=first found PCR PID)"
+puts  "[MAX PACKETS]     Process only these #packets (default=-1 i.e. all packets)" 
+exit
+end
+
+@plot_pid = ARGV[1].to_i unless ARGV[1] == nil
+@ref_pcr_pid = ARGV[2].to_i unless ARGV[2] == nil
+@max_packets = ARGV[3].to_i unless ARGV[3] == nil
 
 File.open ARGV[0] do |file|    
   while not file.eof? do
@@ -66,16 +78,31 @@ File.open ARGV[0] do |file|
     @total_packet_count +=1       
 	
 	#process max packets
-	#if(@total_packet_count > MAX_PACKETS_TO_PROCESS)
-	#break
-	#end
+	if((@total_packet_count > @max_packets) && (@max_packets!=0))
+	 break
+	end
 	
   end
 end
 t2=Time.new()
      
 puts 
-print "\nCalculating bitrates using ref PCR PID: 0x", @ref_pcr_pid.to_s(16), "\n"
+
+#check if passed plot PID is valid
+unless (@pid_counter.keys.include? @plot_pid)
+puts "Wrong Plot PID: #{@plot_pid}. Valid ones are:"
+puts @pid_counter.keys.sort
+exit
+end
+
+#check if passed PCR PID is valid
+unless (@pcr_pid_counter.keys.include? @ref_pcr_pid)
+puts "Wrong PCR PID: #{@ref_pcr_pid}. Valid ones are:"
+puts @pcr_pid_counter.keys.sort
+exit
+end
+
+print "\nCalculating bitrates using ref PCR PID: 0x", @ref_pcr_pid.to_s(16), "(", @ref_pcr_pid.to_s(10).rjust(4),")","\n"
  
 #print unique pids and their count  
 print "\n", "-------------------------------------- \n"
@@ -102,7 +129,7 @@ sum_ts_packets = 0
       if(pcr_delta > 0)          
         pid_bitrate    = CLOCKS_PER_SEC * (pid_pkt_delta   * 8 * MPEG2TS_BLOCK_SIZE) / (pcr_delta)  
           
-        if(key.to_s(10) == @plot_pid)
+        if((key.to_i == @plot_pid) && (@plot_pid!=0))
           @plot_pid_bitrates.push(pid_bitrate)
 		  #print "PID: 0x#{key.to_s(16)}".rjust(6), "  ", pid_bitrate.to_s.rjust(8), "  " ,(pcr_delta/27000).round(4).to_s.rjust(8), "\n" 
         end
@@ -126,7 +153,6 @@ unless @plot_pid_bitrates.size == 0
       
       plot.xrange "[0:#{@plot_pid_bitrates.size}]"
       plot.yrange "[#{@plot_pid_bitrates.min}*0.9:#{@plot_pid_bitrates.max}*1.1]"
-      #plot.yrange "[0 : 5000000]"
 	  plot.title  "Bitrate on PID #{@plot_pid}"
       plot.ylabel "Bitrate"
       plot.xlabel "Samples"
