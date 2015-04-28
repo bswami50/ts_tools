@@ -9,9 +9,10 @@ CLOCKS_PER_SEC = 27000000
 @selected_pid = 0
 @pusi = 0
 
-def processAdaptationField b, pid
-  af_length = b[4]       
+def processAdaptationField b, pid, af_control
   
+  af_length = (af_control == 0x1) ? -1 : b[4]     #0x1 means payload only. There is no length byte so -1
+    
   #PES parsing
   unless (af_length > 183 && @pusi == 0)
     pes_start_pos = 4 + af_length + 1    
@@ -94,7 +95,7 @@ def processAdaptationField b, pid
         #print "[#{pid}] 0x", es_start_code.to_s(16), "\n"
       end     
     end  #pes start code
-  end
+  end #pes parsing
 end
 
 t1 = Time.new()
@@ -119,16 +120,8 @@ File.open ARGV[0] do |file|
     @pid_counter[pid] += 1; #increments pid occurence in hash table by 1 
     
     af_control = (b_uint[3] & 0x30) >> 4
-    if(af_control == 0x2 || af_control == 0x3)
-      processAdaptationField b_uint, pid
-	elsif (af_control == 0x1) #payload only, no AF
-	if(pid.to_s(10) == @selected_pid) #demux PES
-     b_pes = b_uint
-     b_pes = b_pes.drop(4) # 4 TS header bytes 
-     @f_write << (b_pes.pack 'C*') 
-	 end
-    end
-    
+    processAdaptationField b_uint, pid, af_control
+   
     #print "Processed ", @total_packet_count, " packets so far...", "\r" unless ((@total_packet_count % 100000 != 0) || (@total_packet_count == 0))
       
     @total_packet_count +=1       
