@@ -12,9 +12,20 @@ CLOCKS_PER_SEC = 27000000
 def processAdaptationField b, pid, af_control
   
   af_length = (af_control == 0x1) ? -1 : b[4]     #0x1 means payload only. There is no length byte so -1
-    
+  
+    #Just get PCR from AF 
+    if(af_length > 0)
+     pcr_flag = (b[5] & 0x10) >> 4
+     if(pcr_flag == 0x1)
+      pcr_base = (b[6]) << 25 | (b[7] << 17) | (b[8] << 9) | (b[9] << 1) | (b[10] & 80)
+      pcr_extension = ((b[10] & 0x1) << 8) | b[11]    
+      pcr = pcr_base * 300 + pcr_extension 
+	  #puts "PCR: #{pcr}" unless pid.to_s(10) != @selected_pid
+     end
+	end
+  
   #PES parsing
-  unless (af_length > 183 && @pusi == 0)
+  unless (af_length > 183 || @pusi == 0)
     pes_start_pos = 4 + af_length + 1    
 
 	#demux PES 
@@ -32,7 +43,7 @@ def processAdaptationField b, pid, af_control
       pes_length = b[pes_start_pos + 4] << 8 | b[pes_start_pos + 5]
       
       sync_bits = (b[pes_start_pos + 6] & 0xC0) >> 6
-      puts "PES Sync error" unless sync_bits == 2
+      puts "PES Sync error" unless sync_bits == 0x2
       
       dai = (b[pes_start_pos + 6] & 0x5) >> 2
       #puts "DAI not set" unless dai == 1
