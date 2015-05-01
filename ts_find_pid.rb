@@ -131,7 +131,7 @@ sum_ts_packets = 0
       pcr_delta          = curr_pcr - prev_pcr 
       pid_pkt_delta      = curr_pkt_pos_pid - prev_pkt_pos_pid
       total_pkt_delta    = curr_pkt_pos_total - prev_pkt_pos_total
-      if(pcr_delta > 0)          
+      if(pcr_delta/27000 > 1)  #1ms spacing        
         pid_bitrate    = CLOCKS_PER_SEC * (pid_pkt_delta   * 8 * MPEG2TS_BLOCK_SIZE) / (pcr_delta)  
           
         if((key.to_i == @plot_pid) && (@plot_pid!=0))
@@ -156,9 +156,12 @@ unless @plot_pid_bitrates.size == 0
   Gnuplot.open do |gp| 
     Gnuplot::Plot.new( gp ) do |plot|
       
+      #plot.terminal "gif"
+      #plot.output "trunk_mod_.gif"
+	  
       plot.xrange "[0:#{@plot_pid_bitrates.size}]"
       plot.yrange "[#{@plot_pid_bitrates.min}*0.9:#{@plot_pid_bitrates.max}*1.1]"
-	  plot.title  "Bitrate on PID #{@plot_pid}"
+      plot.title  "Bitrate on PID #{@plot_pid}"
       plot.ylabel "Bitrate"
       plot.xlabel "Samples"
     
