@@ -8,6 +8,7 @@ CLOCKS_PER_SEC = 27000000
 @total_packet_count = 0
 @selected_pid = 0
 @pusi = 0
+@mp2_pic_types = {1.to_s=>'I', 2.to_s=>'P',3.to_s=>'B'}
 
 def processAdaptationField b, pid, af_control
   
@@ -86,18 +87,29 @@ def processAdaptationField b, pid, af_control
         case es_start_code.to_s(16)
         when "b3"
           puts "MPEG-2 Sequence Header"
+          print "Picture Size: ", (b[es_start_pos+4] << 8 | b[es_start_pos+5] & 0xf0) >> 4, "x",
+          ((b[es_start_pos+5] & 0x0f) << 8 | b[es_start_pos+6]), "\n"
         when "0"
           puts "MPEG-2 Picture Header"
+          print "Pic Type: ", @mp2_pic_types[((b[es_start_pos+5] & 0x38) >> 3).to_s], "\n"
         when "1"
           puts "AVC non-IDR slice @ #{@total_packet_count}*MPEG2TS_BLOCK_SIZE"
         when "5"
           puts "AVC IDR slice"
         when "6"
           puts "SEI @ #{@total_packet_count*MPEG2TS_BLOCK_SIZE}"
+          puts "NAL forbidden bit not set! " unless ((b[es_start_pos + 4] & 0x80) >> 7 == 0)
+          puts "NAL ref_idc non zero in SEI " unless ((b[es_start_pos + 4] & 0x60) >> 5 == 0)
         when "7"
           puts "SPS @ #{@total_packet_count*MPEG2TS_BLOCK_SIZE}"
+          puts "NAL forbidden bit not set! " unless ((b[es_start_pos + 4] & 0x80) >> 7 == 0)
+          puts "NAL ref_idc zero in SPS " unless ((b[es_start_pos + 4] & 0x60) >> 5 != 0)
+          #print "Profile: ", b[es_start_pos + 5], "\n"
         when "8"
           puts "PPS @ #{@total_packet_count*MPEG2TS_BLOCK_SIZE}"  
+          puts "NAL forbidden bit not set! " unless ((b[es_start_pos + 4] & 0x80) >> 7 == 0)
+          puts "NAL ref_idc zero in PPS " unless ((b[es_start_pos + 4] & 0x60) >> 5 != 0)
+          
         when "9"
           puts "AUD"
         else
