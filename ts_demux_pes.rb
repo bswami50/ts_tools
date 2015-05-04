@@ -21,14 +21,14 @@ def processAdaptationField b, pid, af_control
 
     b_pes = b
     b_pes = b_pes.drop(4+1+af_length) # 4 TS header bytes + 1 AF Length byte + AF Length
-    @f_write[pid] << (b_pes.pack 'C*')   
-    @total_written_pes_packets[pid] +=1
+    @f_write[pid] << (b_pes.pack 'C*')  
+    @total_written_pes_packets[pid] +=1 
   end 
 end
 
 t1 = Time.new()
 if (ARGV[0]== nil) || (ARGV[1] == nil) || (!ARGV[1].match(/^[[:alpha:]]+$/)) || (ARGV[2] == nil) || (ARGV[0] == "-h")
-  puts "Usage: ruby ts_demux.rb TS_FILE OUT_FILE_BASE PID1 [PID2] ..."
+  puts "Usage: ruby ts_demux_pes.rb TS_FILE OUT_FILE_BASE PID1 [PID2] ..."
   puts  "TS_FILE           Input TS beginning with proper start code (0x47)"
   puts  "OUT_FILE_BASE     Base filename of output. Note PID suffixes will be appended to base"
   puts  "PID1, PID2        PIDs (decimal) to be demuxed"
