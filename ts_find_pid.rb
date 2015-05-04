@@ -45,8 +45,8 @@ end
 
 t1 = Time.new()
 if (ARGV[0]== nil) || (ARGV[0] == "-h")
-puts "Usage: ruby ts_find_pid.rb TS FILE [PID] [MAX_PACKETS]"
-puts  "TS FILE           TS beginning with proper start code (0x47)"
+puts "Usage: ruby ts_find_pid.rb TS_FILE [PID] [MAX_PACKETS]"
+puts  "TS_FILE           Input TS beginning with proper start code (0x47)"
 puts  "[PID]             PID (decimal) to plot bitrate (default=none)"
 puts  "[PCR]             Use this PID (decimal) as PCR for timing (default=first found PCR PID)"
 puts  "[MAX PACKETS]     Process only these #packets (default=-1 i.e. all packets)" 
