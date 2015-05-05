@@ -25,26 +25,25 @@ def processAdaptationField b, pid, af_control
     b_pes = b_pes.drop(4+1+af_length) # 4 TS header bytes + 1 AF Length byte + AF Length
         
     num_bytes_pes_header = 0      
-    
-    unless (af_control == 0x1)  #af_ctrl == 1 means only payload present (no header)            
+        
       pes_start_code = b[pes_start_pos] << 16 | b[pes_start_pos+1] << 8 | b[pes_start_pos+2] unless (af_length > 180)        
-      if(pes_start_code == 0x1)    
+      if(pes_start_code == 0x1)  
+         pes_stream_id = b[pes_start_pos + 3] #Ex for video, #Cx for audio
+         pes_length = b[pes_start_pos + 4] << 8 | b[pes_start_pos + 5]
+       if(pes_stream_id >= 224 && pes_stream_id <= 239)	 #only video PIDs
         puts "PUSI bit not set" unless @pusi == 1    
-        pes_stream_id = b[pes_start_pos + 3] #Ex for video, #Cx for audio
-  
-        pes_length = b[pes_start_pos + 4] << 8 | b[pes_start_pos + 5]
-      
         sync_bits = (b[pes_start_pos + 6] & 0xC0) >> 6
-        puts "PES Sync error. Sync bits: #{sync_bits} AF Length: #{af_length} StreamID: #{pes_stream_id}" unless sync_bits == 0x2
+        puts "PES Sync error. Sync bits: #{sync_bits} AF Control: #{af_control} StreamID: #{pes_stream_id}" unless sync_bits == 0x2
       
         dai = (b[pes_start_pos + 6] & 0x5) >> 2
       
         pts_dts_flags = (b[pes_start_pos + 7] & 0xC0) >> 6
         pes_header_length = b[pes_start_pos + 8]
         num_bytes_pes_header = 9 + pes_header_length
-        @pes_header_counter[pid] += 1    
-      end #pes parsing
-    end #af_control != 1
+	
+	   end
+        @pes_header_counter[pid] += 1 
+     end #pes parsing
   
     b_pes = b_pes.drop(num_bytes_pes_header)
     @f_write[pid] << (b_pes.pack 'C*') unless @pes_header_counter[pid] == 0   #remove this if no need to trim ES to PES header
