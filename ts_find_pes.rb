@@ -53,12 +53,12 @@ def processAdaptationField b, pid, af_control
       pes_header_length = b[pes_start_pos + 8]
       
       if(pts_dts_flags ==  0x2 || pts_dts_flags == 0x3)
-        pts = (b[pes_start_pos + 9] & 0x0E) << 30 | (b[pes_start_pos + 10] & 0xFF) << 22 | ((b[pes_start_pos + 11] & 0xFE) >> 1) << 14 | (b[pes_start_pos + 12] & 0xFF) << 7 | (b[pes_start_pos + 13] & 0xFE) >> 1
+        pts = (((b[pes_start_pos + 9] & 0x0E) >> 1) << 30) | (b[pes_start_pos + 10] & 0xFF) << 22 | ((b[pes_start_pos + 11] & 0xFE) >> 1) << 15 | (b[pes_start_pos + 12] & 0xFF) << 7 | (b[pes_start_pos + 13] & 0xFE) >> 1
         #puts "PTS: #{pts}" unless pid.to_s(10) != @selected_pid
       end
       
       if(pts_dts_flags == 0x3)
-        dts = (b[pes_start_pos + 14] & 0x0E) << 30 | (b[pes_start_pos + 15] & 0xFF) << 22 | ((b[pes_start_pos + 16] & 0xFE) >> 1) << 14 | (b[pes_start_pos + 17] & 0xFF) << 7 | (b[pes_start_pos + 18] & 0xFE) >> 1
+        dts = (((b[pes_start_pos + 14] & 0x0E) >> 1) << 30) | (b[pes_start_pos + 15] & 0xFF) << 22 | ((b[pes_start_pos + 16] & 0xFE) >> 1) << 15 | (b[pes_start_pos + 17] & 0xFF) << 7 | (b[pes_start_pos + 18] & 0xFE) >> 1
         #puts "DTS: #{dts}" unless pid.to_s(10) != @selected_pid
       end
       
