@@ -124,7 +124,8 @@ File.open ARGV[0] do |file|
         end #es info parsing
       end #table_id check
     end     
-    @total_packet_count +=1       
+    @total_packet_count +=1  
+    print "Processed ", @total_packet_count, " packets so far...", "\r" unless ((@total_packet_count % 100000 != 0) || (@total_packet_count == 0))     
   end
 end
 
