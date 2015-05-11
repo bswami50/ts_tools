@@ -7,8 +7,8 @@ CLOCKS_PER_SEC = 27000000
 @pid_counter = Hash.new(0)
 @total_packet_count = 0
 @selected_pid = 0
+@pcr_pid = 0
 @pusi = 0
-@mp2_pic_types = {1.to_s=>'I', 2.to_s=>'P',3.to_s=>'B'}
 @pcr_pos_per_pid = Hash.new{|hsh,key| hsh[key] = [] }
 @dts_pos_per_pid = Hash.new{|hsh,key| hsh[key] = [] }
 @plot_vbv_levels = Array.new(0)
@@ -26,7 +26,7 @@ def processAdaptationField b, pid, af_control
       pcr = pcr_base * 300 + pcr_extension 
       #puts "PCR: #{pcr}" unless pid.to_s(10) != @selected_pid
       value = [pcr, @pid_counter[pid]]
-      @pcr_pos_per_pid[pid].push value unless pid.to_s(10) != @selected_pid
+      @pcr_pos_per_pid[pid].push value unless pid.to_s(10) != @pcr_pid
     end
   end
   
@@ -71,8 +71,21 @@ def processAdaptationField b, pid, af_control
   end #pes parsing
 end
 
+if ((ARGV[0]== nil) || (ARGV[0] == "-h") || (ARGV[1] == nil))
+puts "Usage: ruby ts_vbv_levels.rb TS_FILE PID [PCR_PID]"
+puts  "TS_FILE           Input TS beginning with proper start code (0x47)"
+puts  "PID               PID (decimal) to plot vbv levels"
+puts  "[PCR]             Use this PID (decimal) as PCR for timing (default=PID)"
+exit
+end
 
 @selected_pid = ARGV[1] unless ARGV[1] == nil
+if(ARGV[2] == nil)
+@pcr_pid = @selected_pid
+elsif 
+  @pcr_pid = ARGV[2]
+end
+ 
 
 File.open ARGV[0] do |file|    
   while not file.eof? do
@@ -102,28 +115,29 @@ end
 
 puts
 
-@dts_pos_per_pid.keys.sort.each do |key| #loop per pid (key)
+@dts_pos_per_pid.keys.sort.each do |key| #loop per pid (currently, we only store selected pid but can be extended in future to do all PIDs)
   @dts_pos_per_pid[key].each_with_index do |value, i| 
-    #print key, "  ", @pcr_pos_per_pid[key][i][0], "  ", @pcr_pos_per_pid[key][i][1], "\n"
     dts = @dts_pos_per_pid[key][i][0]
-    dts_ts_pkt_count = @dts_pos_per_pid[key][i][1]  
-    @pcr_pos_per_pid[key].each_with_index do |value, j| 
+    dts_pkt_count = @dts_pos_per_pid[key][i][1]  
+    @pcr_pos_per_pid[@pcr_pid.to_i].each_with_index do |value, j| 
       unless j == 0
-        pcr = @pcr_pos_per_pid[key][j][0]
-        prev_pcr = @pcr_pos_per_pid[key][j-1][0]
-        pcr_ts_pkt_count = @pcr_pos_per_pid[key][j][1]
-        prev_pcr_ts_pkt_count = @pcr_pos_per_pid[key][j-1][1]
-        ts_bitrate = ((pcr_ts_pkt_count - prev_pcr_ts_pkt_count) * MPEG2TS_BLOCK_SIZE * 8 * CLOCKS_PER_SEC)/(pcr-prev_pcr)
+        pcr = @pcr_pos_per_pid[@pcr_pid.to_i][j][0]
+        prev_pcr = @pcr_pos_per_pid[@pcr_pid.to_i][j-1][0]
+        pcr_pkt_count = @pcr_pos_per_pid[@pcr_pid.to_i][j][1]
+        prev_pcr_pkt_count = @pcr_pos_per_pid[@pcr_pid.to_i][j-1][1]
+        bitrate = ((pcr_pkt_count - prev_pcr_pkt_count) * MPEG2TS_BLOCK_SIZE * 8 * CLOCKS_PER_SEC)/(pcr-prev_pcr)
+        
         if(pcr > dts)
           delta = (pcr - dts) #time in 27Mhz ticks
-          delta_bits = (delta * ts_bitrate)/CLOCKS_PER_SEC #convert to bits
-          delta_packets = delta_bits/(8 * MPEG2TS_BLOCK_SIZE)
-          vbv = (pcr_ts_pkt_count - dts_ts_pkt_count)*MPEG2TS_BLOCK_SIZE*8 - delta_bits
-          #print (pcr_ts_pkt_count - delta_packets), ": PCR: ", pcr, "  ", dts_ts_pkt_count, ": DTS: ", dts, "  VBV: ", vbv , " bits", "  Delta bits: ", delta_bits,
-          #" TS Bitrate: ", ts_bitrate, "\n"
+          delta_bits = (delta * bitrate)/CLOCKS_PER_SEC #convert to bits
+          delta_packets = delta_bits/(8 * MPEG2TS_BLOCK_SIZE) #convert to packets
+          vbv = (pcr_pkt_count - dts_pkt_count)*MPEG2TS_BLOCK_SIZE*8 - delta_bits
+          print "Removal: ", (pcr_pkt_count - delta_packets), ": PCR: ", pcr, " Arrival: ", dts_pkt_count, ": DTS: ", dts, "  VBV: ", vbv , " bits", "  Delta bits: ", delta_bits,
+          " Bitrate: ", bitrate, "\n"
           @plot_vbv_levels.push(vbv)
           break
         end 
+      
       end #unless 
     end #per pcr
   end #per dts
